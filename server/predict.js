@@ -29,28 +29,39 @@ function timeToSeconds(t) {
 }
 
 function secondsToTime(s) {
-  const m = Math.floor(s / 60);
-  const sec = Math.round(s % 60);
+  let m = Math.floor(s / 60);
+  let sec = Math.round(s % 60);
+  if (sec === 60) { m++; sec = 0; }
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
 function computeStats(workouts) {
   const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
-  const paces = sorted.map(w => w.duration_minutes / w.distance_km);
+
+  // Only use workouts without warmup/cooldown for pace stats (otherwise avg is diluted)
+  const pureWorkouts = sorted.filter(w => !w.warmup_km && !w.cooldown_km);
+  const paces = pureWorkouts.map(w => w.duration_minutes / w.distance_km);
+
   const totalKm = sorted.reduce((s, w) => s + w.distance_km, 0);
   const numDays = sorted.length;
-  const avgPace = (paces.reduce((s, p) => s + p, 0) / paces.length).toFixed(2);
-  const fastestPace = Math.min(...paces).toFixed(2);
+  const fmtPace = (p) => { let m = Math.floor(p); let s = Math.round((p - m) * 60); if (s === 60) { m++; s = 0; } return `${m}:${s.toString().padStart(2, '0')}`; };
+  const avgPace = paces.length ? fmtPace(paces.reduce((s, p) => s + p, 0) / paces.length) : 'N/A';
   const longestRun = Math.max(...sorted.map(w => w.distance_km));
 
   const intervals = sorted.filter(w => w.workout_type === 'intervals' && w.interval_time_seconds);
-  let intervalInfo = '';
+  const tempos = sorted.filter(w => w.workout_type === 'tempo' && w.tempo_time_seconds);
+
+  let qualityInfo = '';
   if (intervals.length) {
-    const avgIntervalPace = (intervals.reduce((s, w) => s + w.interval_time_seconds, 0) / intervals.length).toFixed(0);
-    intervalInfo = `Avg interval pace: ${avgIntervalPace}s/km over ${intervals.length} sessions.`;
+    const avgIntervalPace = intervals.reduce((s, w) => s + w.interval_time_seconds, 0) / intervals.length;
+    qualityInfo += `Avg interval pace: ${fmtPace(avgIntervalPace / 60)} min/km (${intervals.length} sessions). `;
+  }
+  if (tempos.length) {
+    const avgTempoPace = tempos.reduce((s, w) => s + w.tempo_time_seconds, 0) / tempos.length;
+    qualityInfo += `Avg tempo pace: ${fmtPace(avgTempoPace / 60)} min/km (${tempos.length} sessions). `;
   }
 
-  return `COMPUTED STATS: ${numDays} workouts, ${totalKm.toFixed(1)}km total, avg pace ${avgPace} min/km, fastest pace ${fastestPace} min/km, longest run ${longestRun}km. ${intervalInfo}`;
+  return `COMPUTED STATS: ${numDays} workouts, ${totalKm.toFixed(1)}km total, longest run ${longestRun}km. ${qualityInfo}Easy run avg: ${avgPace} min/km.`;
 }
 
 async function predict10k(workouts) {
@@ -59,14 +70,31 @@ async function predict10k(workouts) {
   }
 
   const trainingLog = workouts.map(w => {
-    const pace = (w.duration_minutes / w.distance_km).toFixed(2);
-    let line = `${w.date} | ${w.distance_km}km in ${w.duration_minutes}min (${pace} min/km) | Type: ${w.workout_type} | Effort: ${w.perceived_effort}`;
+    const hasWarmupCooldown = w.warmup_km || w.cooldown_km;
+    const isIntervalsOrTempo = w.workout_type === 'intervals' || w.workout_type === 'tempo';
+
+    let line = `${w.date} | ${w.distance_km}km in ${w.duration_minutes}min`;
+
+    // Only show avg pace if no warmup/cooldown (otherwise it's misleading)
+    if (!hasWarmupCooldown) {
+      const paceRaw = w.duration_minutes / w.distance_km;
+      const paceMin = Math.floor(paceRaw);
+      const paceSec = Math.round((paceRaw - paceMin) * 60);
+      const pace = `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
+      line += ` (${pace} min/km)`;
+    }
+
+    line += ` | Type: ${w.workout_type} | Effort: ${w.perceived_effort}`;
+
     if (w.warmup_km) line += ` | Warmup: ${w.warmup_km}km`;
     if (w.cooldown_km) line += ` | Cooldown: ${w.cooldown_km}km`;
     if (w.interval_distance_m) line += ` | Intervals: ${w.interval_reps}x${w.interval_distance_m}m at ${w.interval_time_seconds}s/km pace, ${w.interval_recovery_type} recovery ${w.interval_recovery_time}s`;
     if (w.tempo_distance_km) line += ` | Tempo: ${w.tempo_distance_km}km at ${w.tempo_time_seconds}s/km pace`;
     if (w.max_heart_rate) line += ` | maxHR: ${w.max_heart_rate}`;
-    if (w.avg_heart_rate) line += ` | HR: ${w.avg_heart_rate}`;
+
+    // Only show avg HR for non-interval/tempo workouts (for those, max HR is more relevant)
+    if (w.avg_heart_rate && !isIntervalsOrTempo) line += ` | HR: ${w.avg_heart_rate}`;
+
     if (w.elevation_m) line += ` | Elev: ${w.elevation_m}m`;
     if (w.notes) line += ` | Notes: ${w.notes}`;
     return line;
