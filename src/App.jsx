@@ -15,6 +15,7 @@ export default function App() {
   const [workouts, setWorkouts] = useState([]);
   const [view, setView] = useState('list');
   const [editingWorkout, setEditingWorkout] = useState(null);
+  const [lastPrediction, setLastPrediction] = useState(null);
 
   const fetchWorkouts = async () => {
     const res = await fetch('/api/workouts');
@@ -55,7 +56,7 @@ export default function App() {
 
       {view === 'list' && <WorkoutList workouts={workouts} onEdit={handleEdit} onDelete={handleDelete} />}
       {view === 'add' && <WorkoutForm onSave={handleSave} initial={editingWorkout} />}
-      {view === 'predict' && <Prediction />}
+      {view === 'predict' && <Prediction lastPrediction={lastPrediction} onPrediction={setLastPrediction} />}
     </div>
   );
 }

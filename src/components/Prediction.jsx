@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 const cardStyle = { maxWidth: 500, margin: '20px auto', padding: 24, border: '2px solid #2563eb', borderRadius: 12, textAlign: 'center' };
 const btnStyle = { padding: '12px 32px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 16, cursor: 'pointer' };
 
-export default function Prediction() {
-  const [prediction, setPrediction] = useState(null);
+export default function Prediction({ lastPrediction, onPrediction }) {
+  const [prediction, setPrediction] = useState(lastPrediction);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -14,7 +14,9 @@ export default function Prediction() {
     try {
       const res = await fetch('/api/predict', { method: 'POST' });
       if (!res.ok) throw new Error((await res.json()).error || 'Prediction failed');
-      setPrediction(await res.json());
+      const data = await res.json();
+      setPrediction(data);
+      onPrediction(data);
     } catch (err) {
       setError(err.message);
     }

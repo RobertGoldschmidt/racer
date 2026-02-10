@@ -2,3 +2,4 @@ node_modules/
 server/workouts.db
 server/auth.json
 .idea/
+.env

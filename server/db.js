@@ -37,6 +37,8 @@ async function getDb() {
       interval_recovery_time INTEGER,
       interval_time_seconds REAL,
       max_heart_rate INTEGER,
+      tempo_distance_km REAL,
+      tempo_time_seconds REAL,
       created_at TEXT DEFAULT (datetime('now'))
     )
   `);

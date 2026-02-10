@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { getDb, save } = require('./db');
@@ -22,10 +23,10 @@ app.get('/api/workouts', async (req, res) => {
 
 app.post('/api/workouts', async (req, res) => {
   const db = await getDb();
-  const { date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, perceived_effort, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, max_heart_rate } = req.body;
+  const { date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, perceived_effort, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, max_heart_rate, tempo_distance_km, tempo_time_seconds } = req.body;
   db.run(
-    `INSERT INTO workouts (date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, perceived_effort, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, max_heart_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [date, distance_km, duration_minutes, avg_heart_rate || null, elevation_m || null, workout_type || 'easy', perceived_effort || 'moderate', notes || null, warmup_km || null, cooldown_km || null, interval_distance_m || null, interval_reps || null, interval_recovery_type || null, interval_recovery_time || null, interval_time_seconds || null, max_heart_rate || null]
+    `INSERT INTO workouts (date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, perceived_effort, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, max_heart_rate, tempo_distance_km, tempo_time_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [date, distance_km, duration_minutes, avg_heart_rate || null, elevation_m || null, workout_type || 'easy', perceived_effort || 'moderate', notes || null, warmup_km || null, cooldown_km || null, interval_distance_m || null, interval_reps || null, interval_recovery_type || null, interval_recovery_time || null, interval_time_seconds || null, max_heart_rate || null, tempo_distance_km || null, tempo_time_seconds || null]
   );
   save();
   res.json({ ok: true });
@@ -33,10 +34,10 @@ app.post('/api/workouts', async (req, res) => {
 
 app.put('/api/workouts/:id', async (req, res) => {
   const db = await getDb();
-  const { date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, perceived_effort, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, max_heart_rate } = req.body;
+  const { date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, perceived_effort, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, max_heart_rate, tempo_distance_km, tempo_time_seconds } = req.body;
   db.run(
-    `UPDATE workouts SET date=?, distance_km=?, duration_minutes=?, avg_heart_rate=?, elevation_m=?, workout_type=?, perceived_effort=?, notes=?, warmup_km=?, cooldown_km=?, interval_distance_m=?, interval_reps=?, interval_recovery_type=?, interval_recovery_time=?, interval_time_seconds=?, max_heart_rate=? WHERE id=?`,
-    [date, distance_km, duration_minutes, avg_heart_rate || null, elevation_m || null, workout_type || 'easy', perceived_effort || 'moderate', notes || null, warmup_km || null, cooldown_km || null, interval_distance_m || null, interval_reps || null, interval_recovery_type || null, interval_recovery_time || null, interval_time_seconds || null, max_heart_rate || null, req.params.id]
+    `UPDATE workouts SET date=?, distance_km=?, duration_minutes=?, avg_heart_rate=?, elevation_m=?, workout_type=?, perceived_effort=?, notes=?, warmup_km=?, cooldown_km=?, interval_distance_m=?, interval_reps=?, interval_recovery_type=?, interval_recovery_time=?, interval_time_seconds=?, max_heart_rate=?, tempo_distance_km=?, tempo_time_seconds=? WHERE id=?`,
+    [date, distance_km, duration_minutes, avg_heart_rate || null, elevation_m || null, workout_type || 'easy', perceived_effort || 'moderate', notes || null, warmup_km || null, cooldown_km || null, interval_distance_m || null, interval_reps || null, interval_recovery_type || null, interval_recovery_time || null, interval_time_seconds || null, max_heart_rate || null, tempo_distance_km || null, tempo_time_seconds || null, req.params.id]
   );
   save();
   res.json({ ok: true });

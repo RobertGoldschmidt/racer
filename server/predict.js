@@ -1,6 +1,6 @@
 const { spawn } = require('child_process');
 
-const CLAUDE_BIN = '/home/robertgoldschmidt/.local/bin/claude';
+const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
 const NUM_RUNS = 3;
 
 function runClaude(prompt) {
@@ -63,7 +63,9 @@ async function predict10k(workouts) {
     let line = `${w.date} | ${w.distance_km}km in ${w.duration_minutes}min (${pace} min/km) | Type: ${w.workout_type} | Effort: ${w.perceived_effort}`;
     if (w.warmup_km) line += ` | Warmup: ${w.warmup_km}km`;
     if (w.cooldown_km) line += ` | Cooldown: ${w.cooldown_km}km`;
-    if (w.interval_distance_m) line += ` | Intervals: ${w.interval_reps}x${w.interval_distance_m}m at ${w.interval_time_seconds}s/km pace, ${w.interval_recovery_type} recovery ${w.interval_recovery_time}s${w.max_heart_rate ? `, maxHR: ${w.max_heart_rate}` : ''}`;
+    if (w.interval_distance_m) line += ` | Intervals: ${w.interval_reps}x${w.interval_distance_m}m at ${w.interval_time_seconds}s/km pace, ${w.interval_recovery_type} recovery ${w.interval_recovery_time}s`;
+    if (w.tempo_distance_km) line += ` | Tempo: ${w.tempo_distance_km}km at ${w.tempo_time_seconds}s/km pace`;
+    if (w.max_heart_rate) line += ` | maxHR: ${w.max_heart_rate}`;
     if (w.avg_heart_rate) line += ` | HR: ${w.avg_heart_rate}`;
     if (w.elevation_m) line += ` | Elev: ${w.elevation_m}m`;
     if (w.notes) line += ` | Notes: ${w.notes}`;

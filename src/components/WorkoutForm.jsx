@@ -27,11 +27,14 @@ export default function WorkoutForm({ onSave, initial }) {
     interval_recovery_time: initial?.interval_recovery_time || '',
     interval_time_seconds: initial?.interval_time_seconds || '',
     max_heart_rate: initial?.max_heart_rate || '',
+    tempo_distance_km: initial?.tempo_distance_km || '',
+    tempo_time_seconds: initial?.tempo_time_seconds || '',
   });
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const isIntervals = form.workout_type === 'intervals';
+  const isTempo = form.workout_type === 'tempo';
 
   const submit = (e) => {
     e.preventDefault();
@@ -49,6 +52,8 @@ export default function WorkoutForm({ onSave, initial }) {
       interval_recovery_time: form.interval_recovery_time ? parseInt(form.interval_recovery_time) : null,
       interval_time_seconds: form.interval_time_seconds ? parseFloat(form.interval_time_seconds) : null,
       max_heart_rate: form.max_heart_rate ? parseInt(form.max_heart_rate) : null,
+      tempo_distance_km: form.tempo_distance_km ? parseFloat(form.tempo_distance_km) : null,
+      tempo_time_seconds: form.tempo_time_seconds ? parseFloat(form.tempo_time_seconds) : null,
     });
   };
 
@@ -117,6 +122,27 @@ export default function WorkoutForm({ onSave, initial }) {
             <label>Interval Time (sec/km)</label>
             <input type="number" step="0.1" value={form.interval_time_seconds} onChange={set('interval_time_seconds')} style={inputStyle} />
           </div>
+        </div>
+      )}
+
+      {/* Tempo section — only shown when type is tempo */}
+      {isTempo && (
+        <div style={sectionStyle}>
+          <div style={sectionLabel}>Tempo Details</div>
+          <div style={fieldStyle}>
+            <label>Tempo Distance (km)</label>
+            <input type="number" step="0.1" value={form.tempo_distance_km} onChange={set('tempo_distance_km')} style={inputStyle} />
+          </div>
+          <div style={fieldStyle}>
+            <label>Tempo Pace (sec/km)</label>
+            <input type="number" step="0.1" value={form.tempo_time_seconds} onChange={set('tempo_time_seconds')} style={inputStyle} />
+          </div>
+        </div>
+      )}
+
+      {/* Max HR — shown for intervals and tempo */}
+      {(isIntervals || isTempo) && (
+        <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div style={fieldStyle}>
             <label>Max Heart Rate</label>
             <input type="number" value={form.max_heart_rate} onChange={set('max_heart_rate')} style={inputStyle} />
