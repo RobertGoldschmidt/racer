@@ -50,6 +50,25 @@ app.delete('/api/workouts/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/progress', async (req, res) => {
+  try {
+    const db = await getDb();
+    const results = db.exec('SELECT * FROM workouts ORDER BY date ASC');
+    if (!results.length) return res.json([]);
+    const cols = results[0].columns;
+    const workouts = results[0].values.map(row => {
+      const obj = {};
+      cols.forEach((c, i) => obj[c] = row[i]);
+      return obj;
+    });
+    const { buildProgress } = require('./predict');
+    res.json(buildProgress(workouts));
+  } catch (err) {
+    console.error('Progress error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/predict', async (req, res) => {
   try {
     const db = await getDb();

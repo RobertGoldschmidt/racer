@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import WorkoutForm from './components/WorkoutForm';
 import WorkoutList from './components/WorkoutList';
 import Prediction from './components/Prediction';
+import ProgressChart from './components/ProgressChart';
 
 const styles = {
   app: { maxWidth: 900, margin: '0 auto', padding: 20, fontFamily: 'system-ui, sans-serif' },
@@ -52,11 +53,13 @@ export default function App() {
         <button style={view === 'list' ? styles.tabActive : styles.tab} onClick={() => { setView('list'); setEditingWorkout(null); }}>Workouts</button>
         <button style={view === 'add' ? styles.tabActive : styles.tab} onClick={() => { setView('add'); setEditingWorkout(null); }}>Add Workout</button>
         <button style={view === 'predict' ? styles.tabActive : styles.tab} onClick={() => setView('predict')}>Predict 10K</button>
+        <button style={view === 'progress' ? styles.tabActive : styles.tab} onClick={() => setView('progress')}>Progress</button>
       </div>
 
       {view === 'list' && <WorkoutList workouts={workouts} onEdit={handleEdit} onDelete={handleDelete} />}
       {view === 'add' && <WorkoutForm onSave={handleSave} initial={editingWorkout} />}
       {view === 'predict' && <Prediction lastPrediction={lastPrediction} onPrediction={setLastPrediction} />}
+      {view === 'progress' && <ProgressChart />}
     </div>
   );
 }

@@ -25,13 +25,16 @@ function secondsToTime(s) {
 
 /**
  * Extract VDOT estimates from qualifying workouts
+ * @param {Array} workouts
+ * @param {number} [asOf] - timestamp to calculate recency from (defaults to now)
  */
-function extractVDOTs(workouts) {
-  const now = Date.now();
+function extractVDOTs(workouts, asOf) {
+  const ref = asOf || Date.now();
   const estimates = [];
 
   for (const w of workouts) {
-    const ageMs = now - new Date(w.date).getTime();
+    const ageMs = ref - new Date(w.date).getTime();
+    if (ageMs < 0) continue; // skip future workouts when computing historical
     const ageDays = ageMs / (1000 * 60 * 60 * 24);
 
     // Race results -> direct VDOT calculation
@@ -100,11 +103,16 @@ function rankEstimates(estimates) {
 
 /**
  * Compute training adjustments (clamped to +/- 30s)
+ * @param {Array} workouts
+ * @param {number} [asOf] - timestamp to calculate from (defaults to now)
  */
-function computeAdjustments(workouts) {
-  const now = Date.now();
-  const fourWeeksAgo = now - 28 * 24 * 60 * 60 * 1000;
-  const recent = workouts.filter(w => new Date(w.date).getTime() >= fourWeeksAgo);
+function computeAdjustments(workouts, asOf) {
+  const ref = asOf || Date.now();
+  const fourWeeksAgo = ref - 28 * 24 * 60 * 60 * 1000;
+  const recent = workouts.filter(w => {
+    const t = new Date(w.date).getTime();
+    return t >= fourWeeksAgo && t <= ref;
+  });
 
   let adj = 0;
   const reasons = [];
@@ -229,4 +237,43 @@ async function predict10k(workouts) {
   };
 }
 
-module.exports = { predict10k };
+/**
+ * Build progress timeline — simulates the full prediction at each workout date
+ * Returns array of { date, vdot, tenK_seconds, predicted_time }
+ */
+function buildProgress(workouts) {
+  const points = [];
+  // workouts should be sorted ASC by date
+  const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
+
+  for (let i = 0; i < sorted.length; i++) {
+    const w = sorted[i];
+    // Use end-of-day as the reference point
+    const asOf = new Date(w.date).getTime() + 86400000 - 1;
+    // All workouts up to and including this date
+    const available = sorted.slice(0, i + 1);
+
+    const estimates = extractVDOTs(available, asOf);
+    if (!estimates.length) continue;
+
+    const ranked = rankEstimates(estimates);
+    const top = ranked.slice(0, 3);
+    const totalWeight = top.reduce((s, e) => s + e.score, 0);
+    const vdot = top.reduce((s, e) => s + e.vdot * e.score, 0) / totalWeight;
+
+    const rawSeconds = predictRaceTime(vdot, 10000) * 60;
+    const { adjustmentSeconds } = computeAdjustments(available, asOf);
+    const finalSeconds = rawSeconds + adjustmentSeconds;
+
+    points.push({
+      date: w.date,
+      vdot: Math.round(vdot * 10) / 10,
+      tenK_seconds: Math.round(finalSeconds),
+      predicted_time: secondsToTime(Math.round(finalSeconds)),
+    });
+  }
+
+  return points;
+}
+
+module.exports = { predict10k, buildProgress };
