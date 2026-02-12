@@ -6,6 +6,17 @@ const tdStyle = { padding: '8px 6px', borderBottom: '1px solid #eee' };
 const btnSmall = { padding: '4px 10px', border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer', fontSize: 12, marginRight: 4 };
 const delBtn = { ...btnSmall, color: '#dc2626', borderColor: '#dc2626' };
 
+const MAX_HR = 191;
+function hrZone(avgHR) {
+  if (!avgHR) return '-';
+  const pct = avgHR / MAX_HR;
+  if (pct >= 0.9) return `Z5 (${avgHR})`;
+  if (pct >= 0.8) return `Z4 (${avgHR})`;
+  if (pct >= 0.7) return `Z3 (${avgHR})`;
+  if (pct >= 0.6) return `Z2 (${avgHR})`;
+  return `Z1 (${avgHR})`;
+}
+
 export default function WorkoutList({ workouts, onEdit, onDelete }) {
   if (!workouts.length) {
     return <p style={{ textAlign: 'center', color: '#666' }}>No workouts yet. Add your first run!</p>;
@@ -21,8 +32,7 @@ export default function WorkoutList({ workouts, onEdit, onDelete }) {
             <th style={thStyle}>Time (min)</th>
             <th style={thStyle}>Pace</th>
             <th style={thStyle}>Type</th>
-            <th style={thStyle}>Effort</th>
-            <th style={thStyle}>HR</th>
+            <th style={thStyle}>HR Zone</th>
             <th style={thStyle}>Actions</th>
           </tr>
         </thead>
@@ -34,8 +44,7 @@ export default function WorkoutList({ workouts, onEdit, onDelete }) {
               <td style={tdStyle}>{w.duration_minutes}</td>
               <td style={tdStyle}>{(() => { const p = w.duration_minutes / w.distance_km; const m = Math.floor(p); const s = Math.round((p - m) * 60); return `${m}:${s.toString().padStart(2, '0')}`; })()} min/km</td>
               <td style={tdStyle}>{w.workout_type}</td>
-              <td style={tdStyle}>{w.perceived_effort}</td>
-              <td style={tdStyle}>{w.avg_heart_rate || '-'}</td>
+              <td style={tdStyle}>{hrZone(w.avg_heart_rate)}</td>
               <td style={tdStyle}>
                 <button style={btnSmall} onClick={() => onEdit(w)}>Edit</button>
                 <button style={delBtn} onClick={() => onDelete(w.id)}>Del</button>

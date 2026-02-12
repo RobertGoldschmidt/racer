@@ -17,7 +17,6 @@ export default function WorkoutForm({ onSave, initial }) {
     avg_heart_rate: initial?.avg_heart_rate || '',
     elevation_m: initial?.elevation_m || '',
     workout_type: initial?.workout_type || 'easy',
-    perceived_effort: initial?.perceived_effort || 'moderate',
     notes: initial?.notes || '',
     warmup_km: initial?.warmup_km || '',
     cooldown_km: initial?.cooldown_km || '',
@@ -26,7 +25,6 @@ export default function WorkoutForm({ onSave, initial }) {
     interval_recovery_type: initial?.interval_recovery_type || 'jog',
     interval_recovery_time: initial?.interval_recovery_time || '',
     interval_time_seconds: initial?.interval_time_seconds || '',
-    max_heart_rate: initial?.max_heart_rate || '',
     tempo_distance_km: initial?.tempo_distance_km || '',
     tempo_time_seconds: initial?.tempo_time_seconds || '',
   });
@@ -51,7 +49,6 @@ export default function WorkoutForm({ onSave, initial }) {
       interval_recovery_type: isIntervals ? form.interval_recovery_type : null,
       interval_recovery_time: form.interval_recovery_time ? parseInt(form.interval_recovery_time) : null,
       interval_time_seconds: form.interval_time_seconds ? parseFloat(form.interval_time_seconds) : null,
-      max_heart_rate: form.max_heart_rate ? parseInt(form.max_heart_rate) : null,
       tempo_distance_km: form.tempo_distance_km ? parseFloat(form.tempo_distance_km) : null,
       tempo_time_seconds: form.tempo_time_seconds ? parseFloat(form.tempo_time_seconds) : null,
     });
@@ -140,16 +137,6 @@ export default function WorkoutForm({ onSave, initial }) {
         </div>
       )}
 
-      {/* Max HR — shown for intervals and tempo */}
-      {(isIntervals || isTempo) && (
-        <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div style={fieldStyle}>
-            <label>Max Heart Rate</label>
-            <input type="number" value={form.max_heart_rate} onChange={set('max_heart_rate')} style={inputStyle} />
-          </div>
-        </div>
-      )}
-
       <div style={fieldStyle}>
         <label>Avg Heart Rate (optional)</label>
         <input type="number" value={form.avg_heart_rate} onChange={set('avg_heart_rate')} style={inputStyle} />
@@ -157,14 +144,6 @@ export default function WorkoutForm({ onSave, initial }) {
       <div style={fieldStyle}>
         <label>Elevation (m, optional)</label>
         <input type="number" step="1" value={form.elevation_m} onChange={set('elevation_m')} style={inputStyle} />
-      </div>
-      <div style={fieldStyle}>
-        <label>Perceived Effort</label>
-        <select value={form.perceived_effort} onChange={set('perceived_effort')} style={inputStyle}>
-          <option value="easy">Easy</option>
-          <option value="moderate">Moderate</option>
-          <option value="hard">Hard</option>
-        </select>
       </div>
       <div style={{ ...fieldStyle, gridColumn: 'span 2' }}>
         <label>Notes (optional)</label>

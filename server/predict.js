@@ -1,5 +1,21 @@
 const { calcVDOT, predictRaceTime, vdotFromThresholdPace, vdotFromIntervalPace } = require('./vdot');
 
+const MAX_HR = 191;
+
+/**
+ * Derive effort level from avg heart rate using %HRmax zones
+ * <60% recovery, 60-70% easy, 70-80% moderate, 80-90% hard, 90%+ max
+ */
+function effortFromHR(avgHR) {
+  if (!avgHR) return 'moderate'; // fallback when no HR data
+  const pct = avgHR / MAX_HR;
+  if (pct >= 0.9) return 'max';
+  if (pct >= 0.8) return 'hard';
+  if (pct >= 0.7) return 'moderate';
+  if (pct >= 0.6) return 'easy';
+  return 'recovery';
+}
+
 function secondsToTime(s) {
   let m = Math.floor(s / 60);
   let sec = Math.round(s % 60);
@@ -22,9 +38,10 @@ function extractVDOTs(workouts) {
     if (w.workout_type === 'race' && w.distance_km && w.duration_minutes) {
       const distanceM = w.distance_km * 1000;
       const vdot = calcVDOT(distanceM, w.duration_minutes);
+      const effort = effortFromHR(w.avg_heart_rate);
       let effortBonus = 0;
-      if (w.perceived_effort === 'hard' || w.perceived_effort === 'max') effortBonus = 0.05;
-      if (w.perceived_effort === 'easy') effortBonus = -0.1;
+      if (effort === 'hard' || effort === 'max') effortBonus = 0.05;
+      if (effort === 'easy') effortBonus = -0.1;
       estimates.push({
         vdot,
         type: 'race',
