@@ -243,18 +243,21 @@ async function predict10k(workouts) {
  */
 function buildProgress(workouts) {
   const points = [];
-  // workouts should be sorted ASC by date
   const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
 
+  // Deduplicate to one entry per date (use last workout of each day)
+  const byDate = [];
   for (let i = 0; i < sorted.length; i++) {
-    const w = sorted[i];
-    // Use end-of-day as the reference point
-    const asOf = new Date(w.date).getTime() + 86400000 - 1;
-    // All workouts up to and including this date
-    const available = sorted.slice(0, i + 1);
+    const isLastOfDate = i === sorted.length - 1 || sorted[i].date !== sorted[i + 1].date;
+    if (isLastOfDate) byDate.push({ date: sorted[i].date, upToIndex: i });
+  }
+
+  for (const { date, upToIndex } of byDate) {
+    const asOf = new Date(date).getTime() + 86400000 - 1;
+    const available = sorted.slice(0, upToIndex + 1);
 
     const estimates = extractVDOTs(available, asOf);
-    if (!estimates.length) continue;
+    if (!estimates.length) continue; // truly no qualifying data yet
 
     const ranked = rankEstimates(estimates);
     const top = ranked.slice(0, 3);
@@ -266,7 +269,7 @@ function buildProgress(workouts) {
     const finalSeconds = rawSeconds + adjustmentSeconds;
 
     points.push({
-      date: w.date,
+      date,
       vdot: Math.round(vdot * 10) / 10,
       tenK_seconds: Math.round(finalSeconds),
       predicted_time: secondsToTime(Math.round(finalSeconds)),
