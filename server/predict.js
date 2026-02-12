@@ -1,32 +1,4 @@
-const { spawn } = require('child_process');
-
-const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
-const NUM_RUNS = 3;
-
-function runClaude(prompt) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(CLAUDE_BIN, ['-p', '--output-format', 'text', '--model', 'claude-opus-4-6', '--max-turns', '1'], { killSignal: 'SIGKILL' });
-    let stdout = '';
-    let stderr = '';
-    let timer = setTimeout(() => { proc.kill('SIGKILL'); reject(new Error('Claude timed out after 10 minutes')); }, 600000);
-    proc.stdout.on('data', d => stdout += d);
-    proc.stderr.on('data', d => stderr += d);
-    proc.on('close', code => {
-      clearTimeout(timer);
-      if (code !== 0 && code !== null) return reject(new Error(stderr || `claude exited with code ${code}`));
-      if (!stdout.trim()) return reject(new Error(stderr || 'Claude returned empty response'));
-      resolve(stdout.trim());
-    });
-    proc.on('error', err => { clearTimeout(timer); reject(err); });
-    proc.stdin.write(prompt);
-    proc.stdin.end();
-  });
-}
-
-function timeToSeconds(t) {
-  const [m, s] = t.split(':').map(Number);
-  return m * 60 + s;
-}
+const { calcVDOT, predictRaceTime, vdotFromThresholdPace, vdotFromIntervalPace } = require('./vdot');
 
 function secondsToTime(s) {
   let m = Math.floor(s / 60);
@@ -35,33 +7,155 @@ function secondsToTime(s) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-function computeStats(workouts) {
-  const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
+/**
+ * Extract VDOT estimates from qualifying workouts
+ */
+function extractVDOTs(workouts) {
+  const now = Date.now();
+  const estimates = [];
 
-  // Only use workouts without warmup/cooldown for pace stats (otherwise avg is diluted)
-  const pureWorkouts = sorted.filter(w => !w.warmup_km && !w.cooldown_km);
-  const paces = pureWorkouts.map(w => w.duration_minutes / w.distance_km);
+  for (const w of workouts) {
+    const ageMs = now - new Date(w.date).getTime();
+    const ageDays = ageMs / (1000 * 60 * 60 * 24);
 
-  const totalKm = sorted.reduce((s, w) => s + w.distance_km, 0);
-  const numDays = sorted.length;
-  const fmtPace = (p) => { let m = Math.floor(p); let s = Math.round((p - m) * 60); if (s === 60) { m++; s = 0; } return `${m}:${s.toString().padStart(2, '0')}`; };
-  const avgPace = paces.length ? fmtPace(paces.reduce((s, p) => s + p, 0) / paces.length) : 'N/A';
-  const longestRun = Math.max(...sorted.map(w => w.distance_km));
+    // Race results -> direct VDOT calculation
+    if (w.workout_type === 'race' && w.distance_km && w.duration_minutes) {
+      const distanceM = w.distance_km * 1000;
+      const vdot = calcVDOT(distanceM, w.duration_minutes);
+      let effortBonus = 0;
+      if (w.perceived_effort === 'hard' || w.perceived_effort === 'max') effortBonus = 0.05;
+      if (w.perceived_effort === 'easy') effortBonus = -0.1;
+      estimates.push({
+        vdot,
+        type: 'race',
+        reliability: 1.0 + effortBonus,
+        ageDays,
+        source: `${w.distance_km}km race on ${w.date} in ${secondsToTime(w.duration_minutes * 60)}`,
+        workout: w,
+      });
+    }
 
-  const intervals = sorted.filter(w => w.workout_type === 'intervals' && w.interval_time_seconds);
-  const tempos = sorted.filter(w => w.workout_type === 'tempo' && w.tempo_time_seconds);
+    // Tempo workouts -> VDOT from threshold pace
+    if (w.workout_type === 'tempo' && w.tempo_time_seconds && w.tempo_distance_km) {
+      const vdot = vdotFromThresholdPace(w.tempo_time_seconds);
+      estimates.push({
+        vdot,
+        type: 'tempo',
+        reliability: 0.85,
+        ageDays,
+        source: `Tempo on ${w.date} at ${secondsToTime(w.tempo_time_seconds)} /km`,
+        workout: w,
+      });
+    }
 
-  let qualityInfo = '';
-  if (intervals.length) {
-    const avgIntervalPace = intervals.reduce((s, w) => s + w.interval_time_seconds, 0) / intervals.length;
-    qualityInfo += `Avg interval pace: ${fmtPace(avgIntervalPace / 60)} min/km (${intervals.length} sessions). `;
+    // Interval workouts -> VDOT from interval pace
+    if (w.workout_type === 'intervals' && w.interval_time_seconds && w.interval_distance_m) {
+      const vdot = vdotFromIntervalPace(w.interval_time_seconds);
+      estimates.push({
+        vdot,
+        type: 'intervals',
+        reliability: 0.75,
+        ageDays,
+        source: `Intervals on ${w.date} at ${secondsToTime(w.interval_time_seconds)} /km`,
+        workout: w,
+      });
+    }
   }
-  if (tempos.length) {
-    const avgTempoPace = tempos.reduce((s, w) => s + w.tempo_time_seconds, 0) / tempos.length;
-    qualityInfo += `Avg tempo pace: ${fmtPace(avgTempoPace / 60)} min/km (${tempos.length} sessions). `;
+
+  return estimates;
+}
+
+/**
+ * Score and rank VDOT estimates using weighted scoring
+ */
+function rankEstimates(estimates) {
+  const HALF_LIFE_DAYS = 30;
+  const decay = Math.LN2 / HALF_LIFE_DAYS;
+
+  return estimates
+    .map(e => {
+      const recency = Math.exp(-decay * e.ageDays);
+      const score = e.reliability * recency;
+      return { ...e, recency, score };
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Compute training adjustments (clamped to +/- 30s)
+ */
+function computeAdjustments(workouts) {
+  const now = Date.now();
+  const fourWeeksAgo = now - 28 * 24 * 60 * 60 * 1000;
+  const recent = workouts.filter(w => new Date(w.date).getTime() >= fourWeeksAgo);
+
+  let adj = 0;
+  const reasons = [];
+
+  // Volume: weekly km in last 4 weeks
+  const totalKm = recent.reduce((s, w) => s + (w.distance_km || 0), 0);
+  const weeklyKm = totalKm / 4;
+  if (weeklyKm >= 40) {
+    adj -= 15;
+    reasons.push(`high volume (${weeklyKm.toFixed(0)} km/wk, -15s)`);
+  } else if (weeklyKm < 15) {
+    adj += 20;
+    reasons.push(`low volume (${weeklyKm.toFixed(0)} km/wk, +20s)`);
   }
 
-  return `COMPUTED STATS: ${numDays} workouts, ${totalKm.toFixed(1)}km total, longest run ${longestRun}km. ${qualityInfo}Easy run avg: ${avgPace} min/km.`;
+  // Consistency: workouts per week
+  const workoutsPerWeek = recent.length / 4;
+  if (workoutsPerWeek >= 5) {
+    adj -= 10;
+    reasons.push(`consistent training (${workoutsPerWeek.toFixed(1)}/wk, -10s)`);
+  } else if (workoutsPerWeek < 2) {
+    adj += 15;
+    reasons.push(`low frequency (${workoutsPerWeek.toFixed(1)}/wk, +15s)`);
+  }
+
+  // Long run presence
+  const hasLongRun = recent.some(w => w.distance_km >= 12);
+  if (hasLongRun) {
+    adj -= 5;
+    reasons.push('long run present (-5s)');
+  }
+
+  // Clamp to +/- 30s
+  adj = Math.max(-30, Math.min(30, adj));
+
+  return { adjustmentSeconds: adj, reasons };
+}
+
+/**
+ * Determine confidence from data quality
+ */
+function determineConfidence(ranked, allWorkouts) {
+  let score = 0;
+
+  // Source quality
+  if (ranked.length > 0) {
+    if (ranked[0].type === 'race') score += 3;
+    else if (ranked[0].type === 'tempo') score += 2;
+    else score += 1;
+  }
+
+  // Recency of primary source
+  if (ranked.length > 0 && ranked[0].ageDays < 14) score += 2;
+  else if (ranked.length > 0 && ranked[0].ageDays < 30) score += 1;
+
+  // Agreement between estimates
+  if (ranked.length >= 2) {
+    const diff = Math.abs(ranked[0].vdot - ranked[1].vdot);
+    if (diff < 2) score += 2;
+    else if (diff < 4) score += 1;
+  }
+
+  // Training data volume
+  if (allWorkouts.length >= 10) score += 1;
+
+  if (score >= 6) return 'high';
+  if (score >= 3) return 'medium';
+  return 'low';
 }
 
 async function predict10k(workouts) {
@@ -69,90 +163,52 @@ async function predict10k(workouts) {
     return { predicted_time: null, confidence: 'low', reasoning: 'No workout data available. Log some runs first!' };
   }
 
-  const trainingLog = workouts.map(w => {
-    const hasWarmupCooldown = w.warmup_km || w.cooldown_km;
-    const isIntervalsOrTempo = w.workout_type === 'intervals' || w.workout_type === 'tempo';
+  // Extract VDOT estimates from qualifying workouts
+  const estimates = extractVDOTs(workouts);
 
-    let line = `${w.date} | ${w.distance_km}km in ${w.duration_minutes}min`;
-
-    // Only show avg pace if no warmup/cooldown (otherwise it's misleading)
-    if (!hasWarmupCooldown) {
-      const paceRaw = w.duration_minutes / w.distance_km;
-      const paceMin = Math.floor(paceRaw);
-      const paceSec = Math.round((paceRaw - paceMin) * 60);
-      const pace = `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
-      line += ` (${pace} min/km)`;
-    }
-
-    line += ` | Type: ${w.workout_type} | Effort: ${w.perceived_effort}`;
-
-    if (w.warmup_km) line += ` | Warmup: ${w.warmup_km}km`;
-    if (w.cooldown_km) line += ` | Cooldown: ${w.cooldown_km}km`;
-    if (w.interval_distance_m) line += ` | Intervals: ${w.interval_reps}x${w.interval_distance_m}m at ${w.interval_time_seconds}s/km pace, ${w.interval_recovery_type} recovery ${w.interval_recovery_time}s`;
-    if (w.tempo_distance_km) line += ` | Tempo: ${w.tempo_distance_km}km at ${w.tempo_time_seconds}s/km pace`;
-    if (w.max_heart_rate) line += ` | maxHR: ${w.max_heart_rate}`;
-
-    // Only show avg HR for non-interval/tempo workouts (for those, max HR is more relevant)
-    if (w.avg_heart_rate && !isIntervalsOrTempo) line += ` | HR: ${w.avg_heart_rate}`;
-
-    if (w.elevation_m) line += ` | Elev: ${w.elevation_m}m`;
-    if (w.notes) line += ` | Notes: ${w.notes}`;
-    return line;
-  }).join('\n');
-
-  const stats = computeStats(workouts);
-
-  const prompt = `You are an expert running coach. Predict a 10K race time using EXACTLY this method:
-1. Identify the best representative race-effort workout (tempo, intervals, or race)
-2. Convert that pace to VDOT using Jack Daniels tables
-3. Look up the 10K equivalent from that VDOT
-4. Adjust by +/- 30s max based on training volume and consistency
-Be precise and deterministic. Return ONLY valid JSON: {"predicted_time":"mm:ss","confidence":"low|medium|high","reasoning":"2-3 sentences"}
-
-${stats}
-
-${trainingLog}`;
-
-  console.log('--- PREDICTION PROMPT ---');
-  console.log(prompt);
-  console.log('--- END PROMPT ---');
-
-  // Run multiple predictions in parallel and average
-  const promises = [];
-  for (let i = 0; i < NUM_RUNS; i++) {
-    promises.push(runClaude(prompt));
-  }
-  const results = await Promise.all(promises);
-
-  const times = [];
-  let lastReasoning = '';
-  for (const text of results) {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.predicted_time) {
-          times.push(timeToSeconds(parsed.predicted_time));
-          lastReasoning = parsed.reasoning;
-        }
-      } catch (e) {}
-    }
+  if (!estimates.length) {
+    return {
+      predicted_time: null,
+      confidence: 'low',
+      reasoning: 'No qualifying workouts found. Log a race, tempo, or interval session to get a prediction.',
+    };
   }
 
-  if (!times.length) {
-    return { predicted_time: 'N/A', confidence: 'low', reasoning: results[0], prompt };
-  }
+  // Rank and select top estimates
+  const ranked = rankEstimates(estimates);
+  const top = ranked.slice(0, 3);
 
-  const avg = times.reduce((s, t) => s + t, 0) / times.length;
-  const spread = Math.max(...times) - Math.min(...times);
-  const confidence = spread <= 60 ? 'high' : spread <= 120 ? 'medium' : 'low';
-  const individual = times.map(t => secondsToTime(t)).join(', ');
+  // Weighted average VDOT from top estimates
+  const totalWeight = top.reduce((s, e) => s + e.score, 0);
+  const vdot = top.reduce((s, e) => s + e.vdot * e.score, 0) / totalWeight;
+
+  // Predict raw 10K time
+  const rawTimeMinutes = predictRaceTime(vdot, 10000);
+  const rawTimeSeconds = rawTimeMinutes * 60;
+
+  // Apply training adjustments
+  const { adjustmentSeconds, reasons: adjReasons } = computeAdjustments(workouts);
+  const finalTimeSeconds = rawTimeSeconds + adjustmentSeconds;
+
+  // Determine confidence
+  const confidence = determineConfidence(ranked, workouts);
+
+  // Build reasoning
+  const primary = top[0];
+  let reasoning = `Based on ${primary.source} (VDOT ${vdot.toFixed(1)})`;
+  if (top.length > 1) {
+    reasoning += `, cross-referenced with ${top.length - 1} other workout(s)`;
+  }
+  reasoning += `. Raw 10K prediction: ${secondsToTime(Math.round(rawTimeSeconds))}`;
+  if (adjustmentSeconds !== 0) {
+    reasoning += `. Adjustments: ${adjReasons.join(', ')} (net ${adjustmentSeconds > 0 ? '+' : ''}${adjustmentSeconds}s)`;
+  }
+  reasoning += '. Calculated using Jack Daniels\' VDOT methodology.';
 
   return {
-    predicted_time: secondsToTime(avg),
+    predicted_time: secondsToTime(Math.round(finalTimeSeconds)),
     confidence,
-    reasoning: `${lastReasoning} [${NUM_RUNS} predictions averaged: ${individual}, spread: ${spread}s]`,
-    prompt,
+    reasoning,
   };
 }
 

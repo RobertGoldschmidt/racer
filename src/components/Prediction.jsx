@@ -26,7 +26,7 @@ export default function Prediction({ lastPrediction, onPrediction }) {
   return (
     <div style={cardStyle}>
       <h2>10K Race Time Prediction</h2>
-      <p style={{ color: '#666', marginBottom: 20 }}>Claude will analyze your training log and predict your 10K finish time.</p>
+      <p style={{ color: '#666', marginBottom: 20 }}>Analyzes your training using Jack Daniels' VDOT methodology to predict your 10K time.</p>
       <button onClick={predict} disabled={loading} style={{ ...btnStyle, opacity: loading ? 0.6 : 1 }}>
         {loading ? 'Analyzing...' : 'Predict My 10K Time'}
       </button>
@@ -46,12 +46,6 @@ export default function Prediction({ lastPrediction, onPrediction }) {
             </>
           ) : (
             <p>{prediction.reasoning}</p>
-          )}
-          {prediction.prompt && (
-            <details style={{ marginTop: 16, fontSize: 12, color: '#666' }}>
-              <summary style={{ cursor: 'pointer' }}>Show prompt sent to Claude</summary>
-              <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 12, borderRadius: 6, marginTop: 8 }}>{prediction.prompt}</pre>
-            </details>
           )}
         </div>
       )}
