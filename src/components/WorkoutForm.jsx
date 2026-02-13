@@ -55,7 +55,7 @@ export default function WorkoutForm({ onSave, initial }) {
   };
 
   return (
-    <form onSubmit={submit} style={formStyle}>
+    <form onSubmit={submit} className="workout-form" style={formStyle}>
       <div style={fieldStyle}>
         <label>Date</label>
         <input type="date" value={form.date} onChange={set('date')} style={inputStyle} required />
@@ -80,8 +80,8 @@ export default function WorkoutForm({ onSave, initial }) {
       </div>
 
       {/* Warmup / Cooldown section */}
-      <div style={sectionStyle}>
-        <div style={sectionLabel}>Warmup / Cooldown</div>
+      <div className="form-section" style={sectionStyle}>
+        <div className="form-section-label" style={sectionLabel}>Warmup / Cooldown</div>
         <div style={fieldStyle}>
           <label>Warmup (km)</label>
           <input type="number" step="0.1" value={form.warmup_km} onChange={set('warmup_km')} style={inputStyle} />
@@ -94,8 +94,8 @@ export default function WorkoutForm({ onSave, initial }) {
 
       {/* Intervals section — only shown when type is intervals */}
       {isIntervals && (
-        <div style={sectionStyle}>
-          <div style={sectionLabel}>Interval Details</div>
+        <div className="form-section" style={sectionStyle}>
+          <div className="form-section-label" style={sectionLabel}>Interval Details</div>
           <div style={fieldStyle}>
             <label>Interval Distance (m)</label>
             <input type="number" step="1" value={form.interval_distance_m} onChange={set('interval_distance_m')} style={inputStyle} />
@@ -124,8 +124,8 @@ export default function WorkoutForm({ onSave, initial }) {
 
       {/* Tempo section — only shown when type is tempo */}
       {isTempo && (
-        <div style={sectionStyle}>
-          <div style={sectionLabel}>Tempo Details</div>
+        <div className="form-section" style={sectionStyle}>
+          <div className="form-section-label" style={sectionLabel}>Tempo Details</div>
           <div style={fieldStyle}>
             <label>Tempo Distance (km)</label>
             <input type="number" step="0.1" value={form.tempo_distance_km} onChange={set('tempo_distance_km')} style={inputStyle} />
@@ -145,7 +145,7 @@ export default function WorkoutForm({ onSave, initial }) {
         <label>Elevation (m, optional)</label>
         <input type="number" step="1" value={form.elevation_m} onChange={set('elevation_m')} style={inputStyle} />
       </div>
-      <div style={{ ...fieldStyle, gridColumn: 'span 2' }}>
+      <div className="form-full-width" style={{ ...fieldStyle, gridColumn: 'span 2' }}>
         <label>Notes (optional)</label>
         <textarea value={form.notes} onChange={set('notes')} style={{ ...inputStyle, minHeight: 60 }} />
       </div>

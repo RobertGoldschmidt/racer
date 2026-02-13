@@ -47,9 +47,9 @@ export default function App() {
   };
 
   return (
-    <div style={styles.app}>
+    <div className="app-container" style={styles.app}>
       <h1 style={styles.h1}>10K Race Predictor</h1>
-      <div style={styles.tabs}>
+      <div className="tabs" style={styles.tabs}>
         <button style={view === 'list' ? styles.tabActive : styles.tab} onClick={() => { setView('list'); setEditingWorkout(null); }}>Workouts</button>
         <button style={view === 'add' ? styles.tabActive : styles.tab} onClick={() => { setView('add'); setEditingWorkout(null); }}>Add Workout</button>
         <button style={view === 'predict' ? styles.tabActive : styles.tab} onClick={() => setView('predict')}>Predict 10K</button>

@@ -17,8 +17,8 @@ export default function ProgressChart() {
     fetch('/api/progress').then(r => r.json()).then(d => { setData(d); setLoading(false); });
   }, []);
 
-  if (loading) return <div style={cardStyle}><p style={{ textAlign: 'center' }}>Loading...</p></div>;
-  if (!data.length) return <div style={cardStyle}><p style={{ textAlign: 'center', color: '#666' }}>No qualifying workouts yet. Log a race, tempo, or interval session to see progress.</p></div>;
+  if (loading) return <div className="progress-card" style={cardStyle}><p style={{ textAlign: 'center' }}>Loading...</p></div>;
+  if (!data.length) return <div className="progress-card" style={cardStyle}><p style={{ textAlign: 'center', color: '#666' }}>No qualifying workouts yet. Log a race, tempo, or interval session to see progress.</p></div>;
 
   const dayMs = 86400000;
   const pad = { top: 30, right: 20, bottom: 60, left: 55 };
@@ -68,7 +68,7 @@ export default function ProgressChart() {
   const uniqueDates = [...new Set(data.map(d => d.date))].map(d => new Date(d).getTime()).sort((a, b) => a - b);
 
   return (
-    <div style={cardStyle}>
+    <div className="progress-card" style={cardStyle}>
       <h2 style={{ textAlign: 'center', marginBottom: 8 }}>10K Fitness Progress</h2>
       <p style={{ textAlign: 'center', color: '#666', fontSize: 13, marginBottom: 12 }}>
         Each point shows what your predicted 10K time would have been on that day.

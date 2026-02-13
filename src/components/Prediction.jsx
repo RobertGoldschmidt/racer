@@ -24,7 +24,7 @@ export default function Prediction({ lastPrediction, onPrediction }) {
   }, []);
 
   return (
-    <div style={cardStyle}>
+    <div className="prediction-card" style={cardStyle}>
       <h2>10K Race Time Prediction</h2>
       <p style={{ color: '#666', marginBottom: 20 }}>Analyzes your training using Jack Daniels' VDOT methodology to predict your 10K time.</p>
 
@@ -36,7 +36,7 @@ export default function Prediction({ lastPrediction, onPrediction }) {
           {prediction.predicted_time ? (
             <>
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <div style={{ fontSize: 48, fontWeight: 'bold', color: '#2563eb' }}>{prediction.predicted_time}</div>
+                <div className="prediction-time" style={{ fontSize: 48, fontWeight: 'bold', color: '#2563eb' }}>{prediction.predicted_time}</div>
                 <div style={{ fontSize: 14, color: '#666' }}>Predicted 10K Time</div>
               </div>
               <div style={{ marginBottom: 8 }}><strong>Confidence:</strong> {prediction.confidence}</div>

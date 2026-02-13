@@ -1,0 +1,136 @@
+/* === Base resets === */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* === Mobile responsive overrides (max-width: 600px) === */
+@media (max-width: 600px) {
+  /* App container */
+  .app-container {
+    padding: 12px !important;
+  }
+
+  .app-container h1 {
+    font-size: 22px;
+    margin-bottom: 16px !important;
+  }
+
+  /* Tabs — wrap and fill width */
+  .tabs {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .tabs button {
+    flex: 1 1 calc(50% - 6px);
+    padding: 10px 8px !important;
+    font-size: 14px !important;
+    min-width: 0;
+    text-align: center;
+  }
+
+  /* Workout form — single column */
+  .workout-form {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 0 4px;
+  }
+
+  .workout-form .form-section {
+    grid-column: span 1 !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .workout-form .form-section-label {
+    grid-column: span 1 !important;
+  }
+
+  .workout-form .form-full-width {
+    grid-column: span 1 !important;
+  }
+
+  .workout-form button[type="submit"] {
+    grid-column: span 1 !important;
+  }
+
+  /* Workout list — card layout on mobile */
+  .workout-table thead {
+    display: none;
+  }
+
+  .workout-table,
+  .workout-table tbody,
+  .workout-table tr,
+  .workout-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .workout-table tr {
+    padding: 12px;
+    margin-bottom: 8px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fafafa;
+  }
+
+  .workout-table td {
+    padding: 4px 0 !important;
+    border-bottom: none !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .workout-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: 12px;
+    color: #666;
+    min-width: 80px;
+  }
+
+  .workout-table td:last-child {
+    justify-content: flex-end;
+    padding-top: 8px !important;
+    margin-top: 4px;
+    border-top: 1px solid #eee !important;
+  }
+
+  /* Prediction card */
+  .prediction-card {
+    margin: 12px auto !important;
+    padding: 16px !important;
+  }
+
+  .prediction-card .prediction-time {
+    font-size: 36px !important;
+  }
+
+  /* Progress chart card */
+  .progress-card {
+    margin: 12px auto !important;
+    padding: 16px !important;
+  }
+}
+
+/* === Tablet breakpoint (max-width: 768px) === */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 16px !important;
+  }
+
+  .workout-form {
+    max-width: 100% !important;
+  }
+
+  .prediction-card,
+  .progress-card {
+    max-width: 100% !important;
+  }
+}

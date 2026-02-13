@@ -24,7 +24,7 @@ export default function WorkoutList({ workouts, onEdit, onDelete }) {
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={tableStyle}>
+      <table className="workout-table" style={tableStyle}>
         <thead>
           <tr>
             <th style={thStyle}>Date</th>
@@ -39,13 +39,13 @@ export default function WorkoutList({ workouts, onEdit, onDelete }) {
         <tbody>
           {workouts.map(w => (
             <tr key={w.id}>
-              <td style={tdStyle}>{w.date}</td>
-              <td style={tdStyle}>{w.distance_km}</td>
-              <td style={tdStyle}>{w.duration_minutes}</td>
-              <td style={tdStyle}>{(() => { const p = w.duration_minutes / w.distance_km; const m = Math.floor(p); const s = Math.round((p - m) * 60); return `${m}:${s.toString().padStart(2, '0')}`; })()} min/km</td>
-              <td style={tdStyle}>{w.workout_type}</td>
-              <td style={tdStyle}>{hrZone(w.avg_heart_rate)}</td>
-              <td style={tdStyle}>
+              <td style={tdStyle} data-label="Date">{w.date}</td>
+              <td style={tdStyle} data-label="Dist (km)">{w.distance_km}</td>
+              <td style={tdStyle} data-label="Time (min)">{w.duration_minutes}</td>
+              <td style={tdStyle} data-label="Pace">{(() => { const p = w.duration_minutes / w.distance_km; const m = Math.floor(p); const s = Math.round((p - m) * 60); return `${m}:${s.toString().padStart(2, '0')}`; })()} min/km</td>
+              <td style={tdStyle} data-label="Type">{w.workout_type}</td>
+              <td style={tdStyle} data-label="HR Zone">{hrZone(w.avg_heart_rate)}</td>
+              <td style={tdStyle} data-label="">
                 <button style={btnSmall} onClick={() => onEdit(w)}>Edit</button>
                 <button style={delBtn} onClick={() => onDelete(w.id)}>Del</button>
               </td>
