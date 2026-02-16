@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racer-v1';
+const CACHE_NAME = 'racer-v2';
 
 const PRECACHE_URLS = [
   '/',
