@@ -49,8 +49,6 @@ export async function getDb() {
   const idb = await openIDB();
   const saved = await idbGet(idb);
 
-  const isNew = !saved;
-
   if (saved) {
     db = new SQL.Database(new Uint8Array(saved));
   } else {
@@ -82,7 +80,10 @@ export async function getDb() {
     )
   `);
 
-  if (isNew && SEED_WORKOUTS.length) {
+  const countResult = db.exec('SELECT COUNT(*) FROM workouts');
+  const rowCount = countResult.length ? countResult[0].values[0][0] : 0;
+
+  if (rowCount === 0 && SEED_WORKOUTS.length) {
     for (const w of SEED_WORKOUTS) {
       db.run(
         `INSERT INTO workouts (date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, tempo_distance_km, tempo_time_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
