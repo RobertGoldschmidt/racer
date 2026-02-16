@@ -1,27 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { predict10k } from '../lib/predict';
 
 const cardStyle = { maxWidth: 500, margin: '20px auto', padding: 24, border: '2px solid #2563eb', borderRadius: 12, textAlign: 'center' };
 
-export default function Prediction({ lastPrediction, onPrediction }) {
+export default function Prediction({ workouts, lastPrediction, onPrediction }) {
   const [prediction, setPrediction] = useState(lastPrediction);
   const [loading, setLoading] = useState(!lastPrediction);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     setLoading(true);
-    setError(null);
-    fetch('/api/predict', { method: 'POST' })
-      .then(res => {
-        if (!res.ok) return res.json().then(d => { throw new Error(d.error || 'Prediction failed'); });
-        return res.json();
-      })
-      .then(data => {
-        setPrediction(data);
-        onPrediction(data);
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+    try {
+      const data = predict10k(workouts);
+      setPrediction(data);
+      onPrediction(data);
+    } catch (err) {
+      setPrediction({ predicted_time: null, confidence: 'low', reasoning: err.message });
+    }
+    setLoading(false);
+  }, [workouts]);
 
   return (
     <div className="prediction-card" style={cardStyle}>
@@ -29,7 +25,6 @@ export default function Prediction({ lastPrediction, onPrediction }) {
       <p style={{ color: '#666', marginBottom: 20 }}>Analyzes your training using Jack Daniels' VDOT methodology to predict your 10K time.</p>
 
       {loading && <p style={{ color: '#666' }}>Analyzing...</p>}
-      {error && <p style={{ color: '#dc2626', marginTop: 16 }}>{error}</p>}
 
       {!loading && prediction && (
         <div style={{ marginTop: 24, textAlign: 'left' }}>

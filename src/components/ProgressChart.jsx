@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import { buildProgress } from '../lib/predict';
 
 const cardStyle = { maxWidth: 700, margin: '20px auto', padding: 24, border: '2px solid #2563eb', borderRadius: 12 };
 
@@ -8,35 +9,30 @@ function fmtTime(sec) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function ProgressChart() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function ProgressChart({ workouts }) {
   const [hover, setHover] = useState(null);
 
-  useEffect(() => {
-    fetch('/api/progress').then(r => r.json()).then(d => { setData(d); setLoading(false); });
-  }, []);
+  const data = useMemo(() => {
+    const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
+    return buildProgress(sorted);
+  }, [workouts]);
 
-  if (loading) return <div className="progress-card" style={cardStyle}><p style={{ textAlign: 'center' }}>Loading...</p></div>;
   if (!data.length) return <div className="progress-card" style={cardStyle}><p style={{ textAlign: 'center', color: '#666' }}>No qualifying workouts yet. Log a race, tempo, or interval session to see progress.</p></div>;
 
   const dayMs = 86400000;
   const pad = { top: 30, right: 20, bottom: 60, left: 55 };
   const H = 300;
 
-  // Time axis (dates)
   const dates = data.map(d => new Date(d.date).getTime());
   const minDate = Math.min(...dates);
   const maxDate = Math.max(...dates);
   const dateRange = maxDate - minDate || dayMs;
   const totalDays = Math.max(1, Math.round(dateRange / dayMs));
 
-  // Dynamic width: 20px per day, minimum 620px
   const W = Math.max(620, pad.left + pad.right + totalDays * 20);
   const plotW = W - pad.left - pad.right;
   const plotH = H - pad.top - pad.bottom;
 
-  // Y axis (10K time in seconds — inverted so faster is higher)
   const times = data.map(d => d.tenK_seconds);
   const minTime = Math.min(...times) - 30;
   const maxTime = Math.max(...times) + 30;
@@ -45,18 +41,15 @@ export default function ProgressChart() {
   const xScale = (date) => pad.left + ((new Date(date).getTime() - minDate) / dateRange) * plotW;
   const yScale = (sec) => pad.top + ((sec - minTime) / timeRange) * plotH;
 
-  // Percentage-based positioning for HTML tooltip
   const xPct = (date) => (xScale(date) / W) * 100;
   const yPct = (sec) => (yScale(sec) / H) * 100;
 
-  // Line path
   const linePath = data.map((d, i) => {
     const x = xScale(d.date);
     const y = yScale(d.tenK_seconds);
     return `${i === 0 ? 'M' : 'L'}${x},${y}`;
   }).join(' ');
 
-  // Y-axis ticks
   const yTicks = [];
   const tickStep = timeRange > 600 ? 120 : 60;
   const firstTick = Math.ceil(minTime / tickStep) * tickStep;
@@ -64,7 +57,6 @@ export default function ProgressChart() {
     yTicks.push(t);
   }
 
-  // X-axis ticks: one per data point date
   const uniqueDates = [...new Set(data.map(d => d.date))].map(d => new Date(d).getTime()).sort((a, b) => a - b);
 
   return (
@@ -76,17 +68,14 @@ export default function ProgressChart() {
       <div style={{ overflowX: 'auto' }}>
         <div style={{ position: 'relative', width: W, minWidth: '100%' }}>
           <svg viewBox={`0 0 ${W} ${H}`} style={{ width: W, height: H, display: 'block' }}>
-            {/* Grid lines */}
             {yTicks.map(t => (
               <line key={t} x1={pad.left} x2={W - pad.right} y1={yScale(t)} y2={yScale(t)} stroke="#eee" strokeWidth={1} />
             ))}
 
-            {/* Y axis labels */}
             {yTicks.map(t => (
               <text key={t} x={pad.left - 8} y={yScale(t) + 4} textAnchor="end" fontSize={11} fill="#666">{fmtTime(t)}</text>
             ))}
 
-            {/* X axis labels — one per data point */}
             {uniqueDates.map(t => {
               const x = pad.left + ((t - minDate) / dateRange) * plotW;
               const d = new Date(t);
@@ -94,14 +83,11 @@ export default function ProgressChart() {
               return <text key={t} x={x} y={H - pad.bottom + 18} textAnchor="middle" fontSize={11} fill="#666">{label}</text>;
             })}
 
-            {/* Axis labels */}
             <text x={pad.left - 8} y={pad.top - 12} textAnchor="end" fontSize={11} fill="#999">Predicted 10K</text>
             <text x={pad.left} y={pad.top - 12} textAnchor="start" fontSize={11} fill="#999">(faster up)</text>
 
-            {/* Line */}
             <path d={linePath} fill="none" stroke="#2563eb" strokeWidth={2} opacity={0.4} />
 
-            {/* Data points */}
             {data.map((d, i) => {
               const x = xScale(d.date);
               const y = yScale(d.tenK_seconds);
@@ -113,7 +99,6 @@ export default function ProgressChart() {
             })}
           </svg>
 
-          {/* HTML tooltip — auto-sizes to content */}
           {hover !== null && (() => {
             const d = data[hover];
             return (

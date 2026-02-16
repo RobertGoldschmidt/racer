@@ -3,6 +3,7 @@ import WorkoutForm from './components/WorkoutForm';
 import WorkoutList from './components/WorkoutList';
 import Prediction from './components/Prediction';
 import ProgressChart from './components/ProgressChart';
+import { getDb, save, queryRows } from './lib/db';
 
 const styles = {
   app: { maxWidth: 900, margin: '0 auto', padding: 20, fontFamily: 'system-ui, sans-serif' },
@@ -17,27 +18,43 @@ export default function App() {
   const [view, setView] = useState('list');
   const [editingWorkout, setEditingWorkout] = useState(null);
   const [lastPrediction, setLastPrediction] = useState(null);
+  const [ready, setReady] = useState(false);
 
   const fetchWorkouts = async () => {
-    const res = await fetch('/api/workouts');
-    setWorkouts(await res.json());
+    const db = await getDb();
+    setWorkouts(queryRows(db, 'SELECT * FROM workouts ORDER BY date DESC'));
   };
 
-  useEffect(() => { fetchWorkouts(); }, []);
+  useEffect(() => {
+    getDb().then(() => {
+      setReady(true);
+      fetchWorkouts();
+    });
+  }, []);
 
   const handleSave = async (data) => {
+    const db = await getDb();
     if (editingWorkout) {
-      await fetch(`/api/workouts/${editingWorkout.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      db.run(
+        `UPDATE workouts SET date=?, distance_km=?, duration_minutes=?, avg_heart_rate=?, elevation_m=?, workout_type=?, notes=?, warmup_km=?, cooldown_km=?, interval_distance_m=?, interval_reps=?, interval_recovery_type=?, interval_recovery_time=?, interval_time_seconds=?, tempo_distance_km=?, tempo_time_seconds=? WHERE id=?`,
+        [data.date, data.distance_km, data.duration_minutes, data.avg_heart_rate || null, data.elevation_m || null, data.workout_type || 'easy', data.notes || null, data.warmup_km || null, data.cooldown_km || null, data.interval_distance_m || null, data.interval_reps || null, data.interval_recovery_type || null, data.interval_recovery_time || null, data.interval_time_seconds || null, data.tempo_distance_km || null, data.tempo_time_seconds || null, editingWorkout.id]
+      );
     } else {
-      await fetch('/api/workouts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      db.run(
+        `INSERT INTO workouts (date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, tempo_distance_km, tempo_time_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [data.date, data.distance_km, data.duration_minutes, data.avg_heart_rate || null, data.elevation_m || null, data.workout_type || 'easy', data.notes || null, data.warmup_km || null, data.cooldown_km || null, data.interval_distance_m || null, data.interval_reps || null, data.interval_recovery_type || null, data.interval_recovery_time || null, data.interval_time_seconds || null, data.tempo_distance_km || null, data.tempo_time_seconds || null]
+      );
     }
+    await save();
     setEditingWorkout(null);
     setView('list');
     fetchWorkouts();
   };
 
   const handleDelete = async (id) => {
-    await fetch(`/api/workouts/${id}`, { method: 'DELETE' });
+    const db = await getDb();
+    db.run('DELETE FROM workouts WHERE id=?', [id]);
+    await save();
     fetchWorkouts();
   };
 
@@ -45,6 +62,8 @@ export default function App() {
     setEditingWorkout(workout);
     setView('add');
   };
+
+  if (!ready) return <div style={{ textAlign: 'center', padding: 40, fontFamily: 'system-ui' }}>Loading database...</div>;
 
   return (
     <div className="app-container" style={styles.app}>
@@ -58,8 +77,8 @@ export default function App() {
 
       {view === 'list' && <WorkoutList workouts={workouts} onEdit={handleEdit} onDelete={handleDelete} />}
       {view === 'add' && <WorkoutForm onSave={handleSave} initial={editingWorkout} />}
-      {view === 'predict' && <Prediction lastPrediction={lastPrediction} onPrediction={setLastPrediction} />}
-      {view === 'progress' && <ProgressChart />}
+      {view === 'predict' && <Prediction workouts={workouts} lastPrediction={lastPrediction} onPrediction={setLastPrediction} />}
+      {view === 'progress' && <ProgressChart workouts={workouts} />}
     </div>
   );
 }
