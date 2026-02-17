@@ -66,7 +66,7 @@ export default function ProgressChart({ workouts }) {
         Each point shows what your predicted 10K time would have been on that day.
       </p>
       <div style={{ overflowX: 'auto' }}>
-        <div style={{ position: 'relative', width: W, minWidth: '100%' }}>
+        <div style={{ position: 'relative', width: W, minWidth: '100%', margin: '0 50px' }}>
           <svg viewBox={`0 0 ${W} ${H}`} style={{ width: W, height: H, display: 'block' }}>
             {yTicks.map(t => (
               <line key={t} x1={pad.left} x2={W - pad.right} y1={yScale(t)} y2={yScale(t)} stroke="#eee" strokeWidth={1} />
