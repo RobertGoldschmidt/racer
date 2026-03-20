@@ -5,8 +5,63 @@ const { getDb, save } = require('./db');
 const { predict10k } = require('./predict');
 
 const app = express();
-app.use(cors());
+
+// Restrict to a configured origin (default: local Vite dev server)
+const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+app.use(cors({ origin: allowedOrigin }));
 app.use(express.json());
+
+// --- Input validation ---
+
+const VALID_TYPES = ['easy', 'tempo', 'intervals', 'long_run', 'race'];
+const VALID_RECOVERY = ['walk', 'jog'];
+
+function validateWorkout(body) {
+  const errors = [];
+  const { date, distance_km, duration_minutes, workout_type } = body;
+
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    errors.push('date must be in YYYY-MM-DD format');
+  } else if (new Date(date) > new Date()) {
+    errors.push('date cannot be in the future');
+  }
+
+  if (distance_km == null || typeof distance_km !== 'number' || distance_km <= 0 || distance_km > 1000) {
+    errors.push('distance_km must be a positive number (max 1000)');
+  }
+
+  if (duration_minutes == null || typeof duration_minutes !== 'number' || duration_minutes <= 0 || duration_minutes > 1440) {
+    errors.push('duration_minutes must be between 0 and 1440');
+  }
+
+  if (!workout_type || !VALID_TYPES.includes(workout_type)) {
+    errors.push(`workout_type must be one of: ${VALID_TYPES.join(', ')}`);
+  }
+
+  if (body.avg_heart_rate != null && (body.avg_heart_rate < 30 || body.avg_heart_rate > 300)) {
+    errors.push('avg_heart_rate must be between 30 and 300');
+  }
+
+  if (body.elevation_m != null && (body.elevation_m < -500 || body.elevation_m > 10000)) {
+    errors.push('elevation_m is out of range');
+  }
+
+  if (body.interval_time_seconds != null && body.interval_time_seconds <= 0) {
+    errors.push('interval_time_seconds must be positive');
+  }
+
+  if (body.tempo_time_seconds != null && body.tempo_time_seconds <= 0) {
+    errors.push('tempo_time_seconds must be positive');
+  }
+
+  if (body.interval_recovery_type != null && !VALID_RECOVERY.includes(body.interval_recovery_type)) {
+    errors.push(`interval_recovery_type must be one of: ${VALID_RECOVERY.join(', ')}`);
+  }
+
+  return errors;
+}
+
+// --- Routes ---
 
 app.get('/api/workouts', async (req, res) => {
   const db = await getDb();
@@ -22,6 +77,9 @@ app.get('/api/workouts', async (req, res) => {
 });
 
 app.post('/api/workouts', async (req, res) => {
+  const errors = validateWorkout(req.body);
+  if (errors.length) return res.status(400).json({ errors });
+
   const db = await getDb();
   const { date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, tempo_distance_km, tempo_time_seconds } = req.body;
   db.run(
@@ -33,6 +91,9 @@ app.post('/api/workouts', async (req, res) => {
 });
 
 app.put('/api/workouts/:id', async (req, res) => {
+  const errors = validateWorkout(req.body);
+  if (errors.length) return res.status(400).json({ errors });
+
   const db = await getDb();
   const { date, distance_km, duration_minutes, avg_heart_rate, elevation_m, workout_type, notes, warmup_km, cooldown_km, interval_distance_m, interval_reps, interval_recovery_type, interval_recovery_time, interval_time_seconds, tempo_distance_km, tempo_time_seconds } = req.body;
   db.run(
@@ -90,5 +151,5 @@ app.post('/api/predict', async (req, res) => {
   }
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

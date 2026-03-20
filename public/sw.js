@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racer-v2';
+const CACHE_NAME = 'racer-v3';
 
 const PRECACHE_URLS = [
   '/',
@@ -33,8 +33,11 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        // Only cache successful responses to avoid persisting errors
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
         return response;
       })
       .catch(() => caches.match(request))

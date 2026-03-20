@@ -2,6 +2,12 @@ const { calcVDOT, predictRaceTime, vdotFromThresholdPace, vdotFromIntervalPace }
 
 const MAX_HR = 191;
 
+// Parse a YYYY-MM-DD string as local midnight (not UTC) to avoid off-by-one timezone errors
+function parseDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+
 /**
  * Derive effort level from avg heart rate using %HRmax zones
  * <60% recovery, 60-70% easy, 70-80% moderate, 80-90% hard, 90%+ max
@@ -33,7 +39,7 @@ function extractVDOTs(workouts, asOf) {
   const estimates = [];
 
   for (const w of workouts) {
-    const ageMs = ref - new Date(w.date).getTime();
+    const ageMs = ref - parseDate(w.date);
     if (ageMs < 0) continue; // skip future workouts when computing historical
     const ageDays = ageMs / (1000 * 60 * 60 * 24);
 
@@ -110,7 +116,7 @@ function computeAdjustments(workouts, asOf) {
   const ref = asOf || Date.now();
   const fourWeeksAgo = ref - 28 * 24 * 60 * 60 * 1000;
   const recent = workouts.filter(w => {
-    const t = new Date(w.date).getTime();
+    const t = parseDate(w.date);
     return t >= fourWeeksAgo && t <= ref;
   });
 
@@ -145,8 +151,8 @@ function computeAdjustments(workouts, asOf) {
     reasons.push('long run present (-5s)');
   }
 
-  // Clamp to +/- 30s
-  adj = Math.max(-30, Math.min(30, adj));
+  // Cap at ±45s: max individual adjustments sum to 45s (20+10+15), so allow the full range
+  adj = Math.max(-45, Math.min(45, adj));
 
   return { adjustmentSeconds: adj, reasons };
 }
@@ -253,7 +259,7 @@ function buildProgress(workouts) {
   }
 
   for (const { date, upToIndex } of byDate) {
-    const asOf = new Date(date).getTime() + 86400000 - 1;
+    const asOf = parseDate(date) + 86400000 - 1;
     const available = sorted.slice(0, upToIndex + 1);
 
     const estimates = extractVDOTs(available, asOf);

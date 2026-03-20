@@ -91,8 +91,7 @@ export const VDOT_TABLE = {
   85: { tenK: 1579, threshold: 166, interval: 152 },
 };
 
-export function vdotFromThresholdPace(secPerKm) {
-  const entries = Object.entries(VDOT_TABLE).map(([v, d]) => [Number(v), d.threshold]);
+function interpolateVdot(entries, secPerKm) {
   for (let i = 0; i < entries.length - 1; i++) {
     const [v1, p1] = entries[i];
     const [v2, p2] = entries[i + 1];
@@ -101,20 +100,24 @@ export function vdotFromThresholdPace(secPerKm) {
       return v1 + frac * (v2 - v1);
     }
   }
-  if (secPerKm >= entries[0][1]) return entries[0][0];
-  return entries[entries.length - 1][0];
+  // Extrapolate linearly beyond table bounds instead of clamping
+  if (secPerKm > entries[0][1]) {
+    // Slower than VDOT 30: extrapolate downward
+    const slope = (entries[1][0] - entries[0][0]) / (entries[0][1] - entries[1][1]);
+    return entries[0][0] - (secPerKm - entries[0][1]) * slope;
+  }
+  // Faster than VDOT 85: extrapolate upward
+  const n = entries.length;
+  const slope = (entries[n - 1][0] - entries[n - 2][0]) / (entries[n - 2][1] - entries[n - 1][1]);
+  return entries[n - 1][0] + (entries[n - 1][1] - secPerKm) * slope;
+}
+
+export function vdotFromThresholdPace(secPerKm) {
+  const entries = Object.entries(VDOT_TABLE).map(([v, d]) => [Number(v), d.threshold]);
+  return interpolateVdot(entries, secPerKm);
 }
 
 export function vdotFromIntervalPace(secPerKm) {
   const entries = Object.entries(VDOT_TABLE).map(([v, d]) => [Number(v), d.interval]);
-  for (let i = 0; i < entries.length - 1; i++) {
-    const [v1, p1] = entries[i];
-    const [v2, p2] = entries[i + 1];
-    if (secPerKm <= p1 && secPerKm >= p2) {
-      const frac = (p1 - secPerKm) / (p1 - p2);
-      return v1 + frac * (v2 - v1);
-    }
-  }
-  if (secPerKm >= entries[0][1]) return entries[0][0];
-  return entries[entries.length - 1][0];
+  return interpolateVdot(entries, secPerKm);
 }

@@ -9,13 +9,13 @@ function fmtTime(sec) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function ProgressChart({ workouts }) {
+export default function ProgressChart({ workouts, maxHR = 191 }) {
   const [hover, setHover] = useState(null);
 
   const data = useMemo(() => {
     const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
-    return buildProgress(sorted);
-  }, [workouts]);
+    return buildProgress(sorted, maxHR);
+  }, [workouts, maxHR]);
 
   if (!data.length) return <div className="progress-card" style={cardStyle}><p style={{ textAlign: 'center', color: '#666' }}>No qualifying workouts yet. Log a race, tempo, or interval session to see progress.</p></div>;
 
@@ -36,7 +36,7 @@ export default function ProgressChart({ workouts }) {
   const times = data.map(d => d.tenK_seconds);
   const minTime = Math.min(...times) - 30;
   const maxTime = Math.max(...times) + 30;
-  const timeRange = maxTime - minTime;
+  const timeRange = maxTime - minTime || 60; // guard against single datapoint with identical times
 
   const xScale = (date) => pad.left + ((new Date(date).getTime() - minDate) / dateRange) * plotW;
   const yScale = (sec) => pad.top + ((sec - minTime) / timeRange) * plotH;

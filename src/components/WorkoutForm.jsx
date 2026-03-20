@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const fieldStyle = { display: 'flex', flexDirection: 'column', gap: 4 };
 const inputStyle = { padding: 8, borderRadius: 6, border: '1px solid #ccc', fontSize: 14 };
@@ -10,8 +10,9 @@ const sectionStyle = { gridColumn: 'span 2', borderTop: '1px solid #ddd', paddin
 const sectionLabel = { gridColumn: 'span 2', fontWeight: 'bold', fontSize: 14, color: '#555' };
 
 export default function WorkoutForm({ onSave, initial }) {
+  const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
-    date: initial?.date || today(),
+    date: initial?.date || todayStr(),
     distance_km: initial?.distance_km || '',
     duration_minutes: initial?.duration_minutes || '',
     avg_heart_rate: initial?.avg_heart_rate || '',
@@ -36,6 +37,12 @@ export default function WorkoutForm({ onSave, initial }) {
 
   const submit = (e) => {
     e.preventDefault();
+    const errs = {};
+    if (form.date > todayStr()) errs.date = 'Date cannot be in the future';
+    if (!form.distance_km || parseFloat(form.distance_km) <= 0) errs.distance_km = 'Must be greater than 0';
+    if (!form.duration_minutes || parseFloat(form.duration_minutes) <= 0) errs.duration_minutes = 'Must be greater than 0';
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    setErrors({});
     onSave({
       ...form,
       distance_km: parseFloat(form.distance_km),
@@ -58,15 +65,18 @@ export default function WorkoutForm({ onSave, initial }) {
     <form onSubmit={submit} className="workout-form" style={formStyle}>
       <div style={fieldStyle}>
         <label>Date</label>
-        <input type="date" value={form.date} onChange={set('date')} style={inputStyle} required />
+        <input type="date" value={form.date} onChange={set('date')} style={inputStyle} required max={todayStr()} />
+        {errors.date && <span style={{ color: '#dc2626', fontSize: 12 }}>{errors.date}</span>}
       </div>
       <div style={fieldStyle}>
         <label>Distance (km) — total</label>
-        <input type="number" step="0.1" value={form.distance_km} onChange={set('distance_km')} style={inputStyle} required />
+        <input type="number" step="0.1" min="0.01" value={form.distance_km} onChange={set('distance_km')} style={inputStyle} required />
+        {errors.distance_km && <span style={{ color: '#dc2626', fontSize: 12 }}>{errors.distance_km}</span>}
       </div>
       <div style={fieldStyle}>
         <label>Duration (minutes) — total</label>
-        <input type="number" step="0.1" value={form.duration_minutes} onChange={set('duration_minutes')} style={inputStyle} required />
+        <input type="number" step="0.1" min="0.1" value={form.duration_minutes} onChange={set('duration_minutes')} style={inputStyle} required />
+        {errors.duration_minutes && <span style={{ color: '#dc2626', fontSize: 12 }}>{errors.duration_minutes}</span>}
       </div>
       <div style={fieldStyle}>
         <label>Workout Type</label>
@@ -116,8 +126,8 @@ export default function WorkoutForm({ onSave, initial }) {
             <input type="number" value={form.interval_recovery_time} onChange={set('interval_recovery_time')} style={inputStyle} />
           </div>
           <div style={fieldStyle}>
-            <label>Interval Time (sec/km)</label>
-            <input type="number" step="0.1" value={form.interval_time_seconds} onChange={set('interval_time_seconds')} style={inputStyle} />
+            <label>Interval Pace (sec/km)</label>
+            <input type="number" step="0.1" min="1" value={form.interval_time_seconds} onChange={set('interval_time_seconds')} style={inputStyle} />
           </div>
         </div>
       )}

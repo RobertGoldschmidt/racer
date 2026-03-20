@@ -3,21 +3,21 @@ import { predict10k } from '../lib/predict';
 
 const cardStyle = { maxWidth: 500, margin: '20px auto', padding: 24, border: '2px solid #2563eb', borderRadius: 12, textAlign: 'center' };
 
-export default function Prediction({ workouts, lastPrediction, onPrediction }) {
+export default function Prediction({ workouts, lastPrediction, onPrediction, maxHR = 191 }) {
   const [prediction, setPrediction] = useState(lastPrediction);
   const [loading, setLoading] = useState(!lastPrediction);
 
   useEffect(() => {
     setLoading(true);
     try {
-      const data = predict10k(workouts);
+      const data = predict10k(workouts, maxHR);
       setPrediction(data);
       onPrediction(data);
     } catch (err) {
       setPrediction({ predicted_time: null, confidence: 'low', reasoning: err.message });
     }
     setLoading(false);
-  }, [workouts]);
+  }, [workouts, maxHR]);
 
   return (
     <div className="prediction-card" style={cardStyle}>

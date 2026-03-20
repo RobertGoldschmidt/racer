@@ -1,10 +1,14 @@
 import { calcVDOT, predictRaceTime, vdotFromThresholdPace, vdotFromIntervalPace } from './vdot.js';
 
-const MAX_HR = 191;
+// Parse a YYYY-MM-DD string as local midnight (not UTC) to avoid off-by-one timezone errors
+function parseDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
 
-function effortFromHR(avgHR) {
+function effortFromHR(avgHR, maxHR) {
   if (!avgHR) return 'moderate';
-  const pct = avgHR / MAX_HR;
+  const pct = avgHR / maxHR;
   if (pct >= 0.9) return 'max';
   if (pct >= 0.8) return 'hard';
   if (pct >= 0.7) return 'moderate';
@@ -19,19 +23,19 @@ function secondsToTime(s) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-function extractVDOTs(workouts, asOf) {
+function extractVDOTs(workouts, asOf, maxHR = 191) {
   const ref = asOf || Date.now();
   const estimates = [];
 
   for (const w of workouts) {
-    const ageMs = ref - new Date(w.date).getTime();
+    const ageMs = ref - parseDate(w.date);
     if (ageMs < 0) continue;
     const ageDays = ageMs / (1000 * 60 * 60 * 24);
 
     if (w.workout_type === 'race' && w.distance_km && w.duration_minutes) {
       const distanceM = w.distance_km * 1000;
       const vdot = calcVDOT(distanceM, w.duration_minutes);
-      const effort = effortFromHR(w.avg_heart_rate);
+      const effort = effortFromHR(w.avg_heart_rate, maxHR);
       let effortBonus = 0;
       if (effort === 'hard' || effort === 'max') effortBonus = 0.05;
       if (effort === 'easy') effortBonus = -0.1;
@@ -90,7 +94,7 @@ function computeAdjustments(workouts, asOf) {
   const ref = asOf || Date.now();
   const fourWeeksAgo = ref - 28 * 24 * 60 * 60 * 1000;
   const recent = workouts.filter(w => {
-    const t = new Date(w.date).getTime();
+    const t = parseDate(w.date);
     return t >= fourWeeksAgo && t <= ref;
   });
 
@@ -122,7 +126,8 @@ function computeAdjustments(workouts, asOf) {
     reasons.push('long run present (-5s)');
   }
 
-  adj = Math.max(-30, Math.min(30, adj));
+  // Cap at ±45s: max individual adjustments sum to 45s (20+10+15), so allow the full range
+  adj = Math.max(-45, Math.min(45, adj));
 
   return { adjustmentSeconds: adj, reasons };
 }
@@ -152,12 +157,12 @@ function determineConfidence(ranked, allWorkouts) {
   return 'low';
 }
 
-export function predict10k(workouts) {
+export function predict10k(workouts, maxHR = 191) {
   if (!workouts.length) {
     return { predicted_time: null, confidence: 'low', reasoning: 'No workout data available. Log some runs first!' };
   }
 
-  const estimates = extractVDOTs(workouts);
+  const estimates = extractVDOTs(workouts, undefined, maxHR);
 
   if (!estimates.length) {
     return {
@@ -199,7 +204,7 @@ export function predict10k(workouts) {
   };
 }
 
-export function buildProgress(workouts) {
+export function buildProgress(workouts, maxHR = 191) {
   const points = [];
   const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
 
@@ -210,10 +215,11 @@ export function buildProgress(workouts) {
   }
 
   for (const { date, upToIndex } of byDate) {
-    const asOf = new Date(date).getTime() + 86400000 - 1;
+    const [y, m, d] = date.split('-').map(Number);
+    const asOf = new Date(y, m - 1, d).getTime() + 86400000 - 1;
     const available = sorted.slice(0, upToIndex + 1);
 
-    const estimates = extractVDOTs(available, asOf);
+    const estimates = extractVDOTs(available, asOf, maxHR);
     if (!estimates.length) continue;
 
     const ranked = rankEstimates(estimates);

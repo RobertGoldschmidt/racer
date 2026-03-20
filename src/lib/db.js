@@ -90,6 +90,8 @@ export async function getDb() {
         [w.date, w.distance_km, w.duration_minutes, w.avg_heart_rate, w.elevation_m, w.workout_type, w.notes, w.warmup_km, w.cooldown_km, w.interval_distance_m, w.interval_reps, w.interval_recovery_type, w.interval_recovery_time, w.interval_time_seconds, w.tempo_distance_km, w.tempo_time_seconds]
       );
     }
+    // Signal the UI to show a one-time notice about sample data
+    localStorage.setItem('racer_seed_notice', 'true');
   }
 
   await save();
