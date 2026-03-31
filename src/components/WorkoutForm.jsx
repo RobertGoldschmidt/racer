@@ -70,7 +70,7 @@ export default function WorkoutForm({ onSave, initial }) {
       </div>
       <div style={fieldStyle}>
         <label>Distance (km) — total</label>
-        <input type="number" step="0.1" min="0.01" value={form.distance_km} onChange={set('distance_km')} style={inputStyle} required />
+        <input type="number" step="any" min="0.001" value={form.distance_km} onChange={set('distance_km')} style={inputStyle} required />
         {errors.distance_km && <span style={{ color: '#dc2626', fontSize: 12 }}>{errors.distance_km}</span>}
       </div>
       <div style={fieldStyle}>
@@ -94,11 +94,11 @@ export default function WorkoutForm({ onSave, initial }) {
         <div className="form-section-label" style={sectionLabel}>Warmup / Cooldown</div>
         <div style={fieldStyle}>
           <label>Warmup (km)</label>
-          <input type="number" step="0.1" value={form.warmup_km} onChange={set('warmup_km')} style={inputStyle} />
+          <input type="number" step="any" value={form.warmup_km} onChange={set('warmup_km')} style={inputStyle} />
         </div>
         <div style={fieldStyle}>
           <label>Cooldown (km)</label>
-          <input type="number" step="0.1" value={form.cooldown_km} onChange={set('cooldown_km')} style={inputStyle} />
+          <input type="number" step="any" value={form.cooldown_km} onChange={set('cooldown_km')} style={inputStyle} />
         </div>
       </div>
 
@@ -138,7 +138,7 @@ export default function WorkoutForm({ onSave, initial }) {
           <div className="form-section-label" style={sectionLabel}>Tempo Details</div>
           <div style={fieldStyle}>
             <label>Tempo Distance (km)</label>
-            <input type="number" step="0.1" value={form.tempo_distance_km} onChange={set('tempo_distance_km')} style={inputStyle} />
+            <input type="number" step="any" value={form.tempo_distance_km} onChange={set('tempo_distance_km')} style={inputStyle} />
           </div>
           <div style={fieldStyle}>
             <label>Tempo Pace (sec/km)</label>
